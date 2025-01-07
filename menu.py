@@ -1,5 +1,7 @@
 import streamlit as st
+import requests
 
+API_URL = "http://127.0.0.1:5000"
 
 def authenticated_menu():
     # Show a navigation menu for authenticated users
@@ -14,14 +16,15 @@ def unauthenticated_menu():
     username = st.sidebar.text_input(label="Username")
     password =st.sidebar.text_input(label="Password", type="password")
     button_html = """
-    <div style="display: flex; justify-content: center; align-items: center;margin: 20px;">
+    <div style="display: flex; justify-content: center; align-items: center;margin: 20px; ">
         <button style="background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
             🔒 Connectez-vous
         </button>
     </div>
     """
-    if st.sidebar.markdown(button_html, unsafe_allow_html=True) and username and password:
-        st.session_state.token = "1234567890"
+    if st.sidebar.button("Login"):
+        response = requests.post(f"{API_URL}/login", json={"email": username, "password": password})
+        st.session_state.token = response.json().get("access_token")
         st.rerun()
 
     if st.sidebar.button("Vous n'avez pas de compte? [Inscrivez-vous](https://www.acssi.com)"):
@@ -29,13 +32,22 @@ def unauthenticated_menu():
 
 @st.dialog("Inscrivez-vous",width='large')
 def subscribe():
-    username = st.text_input("Entrez votre Username")
+    email = st.text_input("Entrez votre email")
     password = st.text_input("Entrez votre Password", type="password")
     confirmed_password = st.text_input("Confirm Password", type="password")
-    if st.button("Submit") and password == confirmed_password:
-        st.session_state.vote = {"username": username, "password": password}
-        st.session_state.token = "1234567890"
-        st.rerun()
+    if not email or not password or not confirmed_password:
+        st.warning("Veuillez remplir tous les champs")
+    if not "@" in email:
+        st.warning("Veuillez entrer une adresse email valide")
+    if not password == confirmed_password:
+        st.warning("Les mots de passe ne correspondent pas")
+
+    if st.button("Submit"):
+        response = requests.post(f"{API_URL}/register", json={"email": email, "password": password})
+        st.write(response.json())
+        if response.status_code == 201:
+            st.session_state.token = response.json().get("access_token")
+            st.rerun()
 
 def menu():
     # Determine if a user is logged in or not, then show the correct
