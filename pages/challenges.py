@@ -7,5 +7,5 @@ menu_with_redirect()
 # Verify the user's role
 
 
-st.title("This page is available to all admins")
+st.title("Challenge Sportif ACSSI")
 st.markdown(f"You are currently logged with the role of {st.session_state.role}.")

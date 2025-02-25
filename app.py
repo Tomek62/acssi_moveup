@@ -1,6 +1,7 @@
 import streamlit as st
 from menu import menu
 
+
 # Initialize st.session_state.role to None
 if "role" not in st.session_state:
     st.session_state.role = None
@@ -22,4 +23,6 @@ Bienvenue sur l'application Challenge Sportif ACSSI!
 Notre objectif est de vous encourager à rester actif et en bonne santé grâce à des défis sportifs hebdomadaires et mensuels.
 Choisissez votre rôle pour commencer et découvrez les défis qui vous attendent!
 """)
+
+
 menu() # Render the dynamic menu!

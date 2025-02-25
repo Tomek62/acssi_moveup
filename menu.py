@@ -1,13 +1,22 @@
 import streamlit as st
 import requests
+import time
+from components.subscribe_modal import subscribe
+
 
 API_URL = "http://127.0.0.1:5000"
+STRAVA_API_URL = "https://www.strava.com/api/v3"
 
 def authenticated_menu():
     # Show a navigation menu for authenticated users
-    st.sidebar.page_link("pages/mon-classement.py", label="My ranking")
-    st.sidebar.page_link("pages/mes-performances.py", label="My performances")
-    if st.sidebar.button("Logout"):
+    st.sidebar.page_link("pages/mes-performances.py", label="Mes performances", icon="🎯")
+    st.sidebar.page_link("pages/mon-classement.py", label="Mon classement", icon="🥇")
+    st.sidebar.page_link("pages/challenges.py", label="Mes challenges", icon=":material/sports_score:")
+    st.sidebar.page_link("pages/mon-profil.py", label="Mon profil", icon="👤")
+    logout_button = st.sidebar.button("Logout", use_container_width=True, icon=":material/logout:")
+    
+    # Fonctionnalité de déconnexion
+    if logout_button:
         st.session_state.token = None
         st.rerun()
 
@@ -15,39 +24,65 @@ def unauthenticated_menu():
     # Show a navigation menu for unauthenticated users
     username = st.sidebar.text_input(label="Username")
     password =st.sidebar.text_input(label="Password", type="password")
-    button_html = """
-    <div style="display: flex; justify-content: center; align-items: center;margin: 20px; ">
-        <button style="background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer;">
-            🔒 Connectez-vous
-        </button>
+    auth_url = f"{API_URL}/strava/auth"
+    button =st.sidebar.button("🔒 Connectez-vous",use_container_width=True)
+    button_strava= f"""
+    <div style="display: flex;margin-bottom: 10px;background-color: #FC5200;border: none; padding: 10px 20px;border-radius: 5px;">
+        <a href="{auth_url}" style=" color: white;  width:100%; cursor: pointer; text-decoration: none; text-align: center;">
+            Connectez-vous avec Strava
+        </a>
     </div>
     """
-    if st.sidebar.button("Login"):
-        response = requests.post(f"{API_URL}/login", json={"email": username, "password": password})
-        st.session_state.token = response.json().get("access_token")
-        st.rerun()
+    if st.sidebar.markdown(button_strava, unsafe_allow_html=True):
+        query_params = st.query_params
+        if "access_token" in query_params:
+            print(query_params)
+            st.session_state.token = query_params["access_token"]
+            print(st.session_state.token)
+            st.query_params = {}  # Clear the token from the URL
+                # 2️⃣ Faire une requête pour récupérer les infos de l'utilisateur
+            headers = {"Authorization": f"Bearer {st.session_state.token}"}
+            try:
+                response = requests.get(f"{API_URL}/get_user", headers=headers,json={"token": st.session_state.token})
+                print(response)
+                if response.status_code == 200:
+                    st.session_state.user = response.json().get("user")
+                    st.query_params.clear()
+                    st.switch_page("pages/mes-performances.py")
+            
+                else:
+                    st.sidebar.error("Impossible de récupérer les informations utilisateur.")
+            except requests.exceptions.RequestException as e:
+                st.sidebar.error(f"Erreur de connexion au serveur : {e}")
 
-    if st.sidebar.button("Vous n'avez pas de compte? [Inscrivez-vous](https://www.acssi.com)"):
+            
+    if button:
+        try:
+            response = requests.post(f"{API_URL}/login", json={"email": username, "password": password})
+            
+            if response.status_code == 401:
+                st.sidebar.error("Email ou mot de passe invalides")
+            elif response.status_code == 200:
+                with st.sidebar:
+                    with st.spinner("Connexion en cours..."):
+                        time.sleep(2)
+                st.sidebar.success("Connexion réussie")
+                time.sleep(2)
+                st.session_state.token = response.json().get("token")
+                st.session_state.user = response.json().get("user")
+                st.switch_page("pages/mes-performances.py")
+            else:
+                st.sidebar.error(f"Erreur inattendue ({response.status_code}): {response.text}")
+
+        except requests.exceptions.RequestException as e:
+            # Catch and display errors related to the HTTP request
+            st.sidebar.error(f"Erreur de connexion au serveur : {e}")
+        except Exception as e:
+            # Catch any other unexpected exceptions
+            st.sidebar.error(f"Une erreur inattendue s'est produite : {e}")
+
+    if st.sidebar.button("💪🏼 S'inscrire",use_container_width=True):
         subscribe()
-
-@st.dialog("Inscrivez-vous",width='large')
-def subscribe():
-    email = st.text_input("Entrez votre email")
-    password = st.text_input("Entrez votre Password", type="password")
-    confirmed_password = st.text_input("Confirm Password", type="password")
-    if not email or not password or not confirmed_password:
-        st.warning("Veuillez remplir tous les champs")
-    if not "@" in email:
-        st.warning("Veuillez entrer une adresse email valide")
-    if not password == confirmed_password:
-        st.warning("Les mots de passe ne correspondent pas")
-
-    if st.button("Submit"):
-        response = requests.post(f"{API_URL}/register", json={"email": email, "password": password})
-        st.write(response.json())
-        if response.status_code == 201:
-            st.session_state.token = response.json().get("access_token")
-            st.rerun()
 
 def menu():
     # Determine if a user is logged in or not, then show the correct

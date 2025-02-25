@@ -11,5 +11,11 @@ class User(db.Model):
     strava_refresh_token = db.Column(db.String(200), nullable=True)
     strava_expires_at = db.Column(db.DateTime, nullable=True)
     
+    def to_dict(self):
+        return {
+            'user_id': self.user_id,
+            'username': self.username,
+            'email': self.email,
+        }
 
 
